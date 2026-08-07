@@ -1,0 +1,17 @@
+# Terraform state chứa thông tin nhạy cảm (secrets, IP nội bộ...), không commit
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# File biến cá nhân của bạn, không commit vì có thể chứa thông tin riêng
+terraform.tfvars
+*.auto.tfvars
+
+# File override cục bộ
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

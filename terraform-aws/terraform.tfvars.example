@@ -1,0 +1,16 @@
+# Copy file này thành terraform.tfvars rồi chỉnh theo nhu cầu.
+# terraform.tfvars KHÔNG nên commit lên Git nếu chứa thông tin nhạy cảm.
+
+aws_region      = "ap-southeast-1"
+project_name    = "eks-observability-demo"
+environment     = "dev"
+cluster_version = "1.30"
+
+node_instance_type      = "t3.medium"
+node_group_desired_size = 2
+node_group_min_size     = 2
+node_group_max_size     = 3
+
+# Thêm ARN của giảng viên hướng dẫn nếu muốn họ có quyền xem cluster, ví dụ:
+# additional_iam_users = ["arn:aws:iam::123456789012:user/giangvien"]
+additional_iam_users = []

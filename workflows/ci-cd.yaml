@@ -1,0 +1,65 @@
+name: Continuous Integration (CI) - Build & Push to ECR
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    name: Build and Push Microservice
+    runs-on: ubuntu-latest
+    
+    # Thiết lập matrix để build song song các microservices
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - frontend
+          - checkoutservice
+          - cartservice
+          - productcatalogservice
+          - shippingservice
+          - paymentservice
+          - emailservice
+          - recommendationservice
+          - currencyservice
+          - adservice
+
+    steps:
+      # 1. Lấy mã nguồn từ GitHub
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Khởi tạo Docker Buildx (bắt buộc để kích hoạt tính năng Caching gha)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Xác thực với AWS bằng GitHub Secrets đã cài đặt ở Ngày 1
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 4. Đăng nhập vào Amazon ECR
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 5. Build Docker Image và Push lên ECR kèm Docker Layer Caching
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/${{ matrix.service }}
+          file: ./src/${{ matrix.service }}/Dockerfile
+          # Chỉ push image khi merge/push vào nhánh main, pull_request chỉ thực hiện build test
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/online-boutique/${{ matrix.service }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/online-boutique/${{ matrix.service }}:${{ github.sha }}
+          # Cấu hình Docker Layer Caching qua GitHub Actions Cache (GHA)
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
