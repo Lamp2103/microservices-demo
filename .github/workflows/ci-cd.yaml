@@ -120,7 +120,7 @@ jobs:
           kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
           # 2. Apply toàn bộ Manifests K8s gốc
-          kubectl apply -f ./k8s/ -n $NAMESPACE
+          kubectl apply -f ./release/kubernetes-manifests.yaml -n $NAMESPACE
 
           # 3. Cập nhật Image Tag mới từ ECR cho các Deployments
           SERVICES=(
