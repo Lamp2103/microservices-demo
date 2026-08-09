@@ -110,12 +110,19 @@ jobs:
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
 
       # 5. Cập nhật Image Tag mới (${{ github.sha }}) vào Kubernetes Deployments
-      - name: Deploy / Update Image Tags in K8s
+      - name: Deploy / Update Manifests in K8s
         run: |
           REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           COMMIT_SHA="${{ github.sha }}"
           NAMESPACE="online-boutique"
 
+          # 1. Tự động tạo Namespace nếu chưa tồn tại
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+          # 2. Apply toàn bộ Manifests K8s gốc
+          kubectl apply -f ./k8s/ -n $NAMESPACE
+
+          # 3. Cập nhật Image Tag mới từ ECR cho các Deployments
           SERVICES=(
             "frontend"
             "checkoutservice"
