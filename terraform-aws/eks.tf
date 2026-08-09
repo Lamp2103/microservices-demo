@@ -1,72 +1,29 @@
-locals {
-  cluster_name = "${var.project_name}-${var.environment}"
-}
-
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.0"
+  version = "20.8.4"
 
-  cluster_name    = local.cluster_name
-  cluster_version = var.cluster_version
+  cluster_name    = "observability-demo-cluster"
+  cluster_version = "1.31" # Đặt cố định 1.30 (KHÔNG hạ xuống 1.29)
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  cluster_endpoint_public_access = true
 
-  cluster_endpoint_public_access = var.enable_cluster_public_access
-
-  # Tự động cấp quyền admin cluster cho IAM user/role đang chạy terraform apply,
-  # cộng thêm danh sách additional_iam_users nếu có (VD: giảng viên hướng dẫn)
-  enable_cluster_creator_admin_permissions = true
-
-  access_entries = {
-    for idx, arn in var.additional_iam_users : "extra-admin-${idx}" => {
-      principal_arn = arn
-      policy_associations = {
-        admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
-  }
+  vpc_id                   = module.vpc.vpc_id
+  subnet_ids               = module.vpc.private_subnets
+  control_plane_subnet_ids = module.vpc.private_subnets
 
   eks_managed_node_groups = {
-    default = {
-      min_size     = var.node_group_min_size
-      max_size     = var.node_group_max_size
-      desired_size = var.node_group_desired_size
+    demo_nodes = {
+      min_size     = 1
+      max_size     = 3
+      desired_size = 2
 
-      instance_types = [var.node_instance_type]
-      capacity_type  = "ON_DEMAND" # đổi thành "SPOT" nếu muốn tiết kiệm chi phí hơn nữa cho demo
-
-      disk_size = var.node_disk_size
-
-      labels = {
-        role = "general"
-      }
-
-      tags = {
-        "Name" = "${local.cluster_name}-node"
-      }
+      instance_types = ["t3.medium"]
+      capacity_type  = "SPOT"
+      
+      # Khai báo AMI AL2023 bắt buộc cho K8s 1.30
+      ami_type       = "AL2023_x86_64_STANDARD"
     }
   }
 
-  # Cho phép các add-on EKS quan trọng được quản lý qua module luôn,
-  # thay vì cài thủ công sau khi cluster đã lên
-  cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
-    }
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
-  }
+  enable_cluster_creator_admin_permissions = true
 }

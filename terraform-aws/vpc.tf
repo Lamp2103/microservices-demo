@@ -1,31 +1,23 @@
-# Dùng module chính thức từ terraform-aws-modules để đảm bảo cấu hình chuẩn,
-# đã được cộng đồng kiểm chứng rộng rãi cho việc dựng VPC phục vụ EKS.
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.8"
+  version = "5.5.0"
 
-  name = "${var.project_name}-vpc"
-  cidr = var.vpc_cidr
+  name = "eks-demo-vpc"
+  cidr = "10.0.0.0/16"
 
-  azs = var.availability_zones
-
-  # Chia CIDR: private subnet cho worker node, public subnet cho load balancer/NAT
-  private_subnets = [for i, az in var.availability_zones : cidrsubnet(var.vpc_cidr, 8, i)]
-  public_subnets  = [for i, az in var.availability_zones : cidrsubnet(var.vpc_cidr, 8, i + 100)]
+  azs             = ["ap-southeast-1a", "ap-southeast-1b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
   enable_nat_gateway   = true
-  single_nat_gateway   = true # 1 NAT Gateway chung để tiết kiệm chi phí (đủ cho demo, không cần HA)
+  single_nat_gateway   = true # Dùng 1 Single NAT Gateway để tối ưu chi phí
   enable_dns_hostnames = true
-  enable_dns_support   = true
 
-  # Các tag bắt buộc để EKS + AWS Load Balancer Controller nhận diện đúng subnet
   public_subnet_tags = {
-    "kubernetes.io/role/elb"                      = "1"
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/elb" = 1
   }
 
   private_subnet_tags = {
-    "kubernetes.io/role/internal-elb"             = "1"
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
+    "kubernetes.io/role/internal-elb" = 1
   }
 }
