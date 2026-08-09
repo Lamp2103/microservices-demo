@@ -18,7 +18,34 @@ metadata:
   name: checkoutservice
   labels:
     app: checkoutservice
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingDưới đây là file `checkoutservice.yaml` đã được cập nhật lại phần **Readiness** và **Liveness Probes**. 
+
+Mặc dù cấu hình `grpc` cơ bản của bạn đã đúng với các phiên bản Kubernetes mới (hỗ trợ Native gRPC Probe), nhưng trong môi trường thực tế, bạn nên bổ sung thêm các tham số về thời gian (như `initialDelaySeconds`, `periodSeconds`, `timeoutSeconds`) để tránh việc Kubernetes khởi động lại hoặc loại bỏ Pod trước khi ứng dụng kịp khởi động xong.
+
+### File YAML đã được chỉnh sửa
+
+```yaml
+# Copyright 2018 Google LLC
+# ... (Giữ nguyên phần license)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkoutservice
+  labels:
+    app: checkoutservice
+  namespace: online-boutique
+spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: checkoutservice
@@ -45,12 +72,23 @@ spec:
           image: checkoutservice
           ports:
           - containerPort: 5050
+          # Bổ sung tham số thời gian cho Readiness Probe
           readinessProbe:
             grpc:
               port: 5050
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+          # Bổ sung tham số thời gian cho Liveness Probe
           livenessProbe:
             grpc:
               port: 5050
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
           env:
           - name: PORT
             value: "5050"

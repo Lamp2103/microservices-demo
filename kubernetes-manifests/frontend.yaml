@@ -18,7 +18,14 @@ metadata:
   name: frontend
   labels:
     app: frontend
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: frontend
@@ -48,22 +55,32 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
           - containerPort: 8080
+          # [CẬP NHẬT] Readiness Probe: Quyết định khi nào Pod sẵn sàng nhận traffic
           readinessProbe:
             initialDelaySeconds: 10
+            periodSeconds: 5        # Tần suất kiểm tra: 5s/lần
+            timeoutSeconds: 2       # Chờ phản hồi tối đa 2s, quá 2s coi như fail
+            successThreshold: 1     # Chỉ cần 1 lần thành công là cho phép nhận traffic
+            failureThreshold: 3     # Phải fail 3 lần liên tiếp mới ngắt traffic
             httpGet:
               path: "/_healthz"
               port: 8080
               httpHeaders:
               - name: "Cookie"
                 value: "shop_session-id=x-readiness-probe"
+          # [CẬP NHẬT] Liveness Probe: Quyết định khi nào Pod bị treo và cần restart
           livenessProbe:
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15 # Cho thời gian khởi động lâu hơn Readiness một chút tránh bị kill oan
+            periodSeconds: 10       # Tần suất kiểm tra: 10s/lần
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 3     # Phải fail 3 lần liên tiếp mới tiến hành restart Pod
             httpGet:
               path: "/_healthz"
               port: 8080
               httpHeaders:
               - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
+                value: "shop_session-id=x-liveness-probe"     
           env:
           - name: PORT
             value: "8080"
@@ -83,21 +100,8 @@ spec:
             value: "adservice:9555"
           - name: SHOPPING_ASSISTANT_SERVICE_ADDR
             value: "shoppingassistantservice:80"
-          # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem, alibaba
-          # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp
-          # - name: ENV_PLATFORM
-          #   value: "aws"
           - name: ENABLE_PROFILER
             value: "0"
-          # - name: CYMBAL_BRANDING
-          #   value: "true"
-          # - name: ENABLE_ASSISTANT
-          #   value: "true"
-          # - name: FRONTEND_MESSAGE
-          #   value: "Replace this with a message you want to display on all pages."
-          # As part of an optional Google Cloud demo, you can run an optional microservice called the "packaging service".
-          # - name: PACKAGING_SERVICE_URL
-          #   value: "" # This value would look like "http://123.123.123"
           resources:
             requests:
               cpu: 100m

@@ -18,7 +18,14 @@ metadata:
   name: currencyservice
   labels:
     app: currencyservice
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: currencyservice
@@ -55,9 +62,19 @@ spec:
         readinessProbe:
           grpc:
             port: 7000
+          initialDelaySeconds: 5  # Đợi 5 giây trước khi kiểm tra lần đầu
+          periodSeconds: 5        # Kiểm tra định kỳ mỗi 5 giây
+          timeoutSeconds: 2       # Thời gian tối đa chờ phản hồi là 2 giây
+          successThreshold: 1     # Cần 1 lần thành công để được đánh giá là ready
+          failureThreshold: 3     # Đánh dấu failed sau 3 lần thất bại liên tiếp
         livenessProbe:
           grpc:
             port: 7000
+          initialDelaySeconds: 10 # Đợi lâu hơn một chút (10s) trước khi liveness kiểm tra lần đầu
+          periodSeconds: 10       # Kiểm tra định kỳ mỗi 10 giây
+          timeoutSeconds: 2       # Thời gian tối đa chờ phản hồi là 2 giây
+          successThreshold: 1     # Cần 1 lần thành công để phục hồi trạng thái
+          failureThreshold: 3     # Khởi động lại container sau 3 lần thất bại liên tiếp
         resources:
           requests:
             cpu: 100m

@@ -18,7 +18,14 @@ metadata:
   name: recommendationservice
   labels:
     app: recommendationservice
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: recommendationservice
@@ -47,10 +54,16 @@ spec:
         ports:
         - containerPort: 8080
         readinessProbe:
-          periodSeconds: 5
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
           grpc:
             port: 8080
         livenessProbe:
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
           periodSeconds: 5
           grpc:
             port: 8080

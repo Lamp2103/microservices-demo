@@ -7,13 +7,40 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-and-push:
-    name: Build and Push Microservice
+  # Job 1: Phát hiện thư mục microservice nào có thay đổi code
+  changes:
+    name: Detect Changed Microservices
     runs-on: ubuntu-latest
-    
-    # Thiết lập matrix để build song song các microservices
+    outputs:
+      services: ${{ steps.filter.outputs.changes }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check for file changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend: 'src/frontend/**'
+            checkoutservice: 'src/checkoutservice/**'
+            cartservice: 'src/cartservice/**'
+            productcatalogservice: 'src/productcatalogservice/**'
+            shippingservice: 'src/shippingservice/**'
+            paymentservice: 'src/paymentservice/**'
+            emailservice: 'src/emailservice/**'
+            recommendationservice: 'src/recommendationservice/**'
+            currencyservice: 'src/currencyservice/**'
+            adservice: 'src/adservice/**'
+
+  build-and-push:
+    name: Build & Push Docker Images
+    needs: changes
+    if: ${{ needs.changes.outputs.services != '[]' && needs.changes.outputs.services != '' }}
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: false  # Nếu 1 service bị build lỗi, các service còn lại vẫn tiếp tục build
+      max-parallel: 4    # Giới hạn chạy tối đa 4 build song song để không quá tải network/GHA runner
       matrix:
         include:
           - service: frontend
@@ -73,9 +100,9 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          context: ./src/${{ matrix.service }}
+          file: ./src/${{ matrix.service }}/Dockerfile
+          push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/online-boutique/${{ matrix.service }}:latest
             ${{ steps.login-ecr.outputs.registry }}/online-boutique/${{ matrix.service }}:${{ github.sha }}

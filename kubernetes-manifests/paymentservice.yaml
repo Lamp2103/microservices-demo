@@ -18,7 +18,14 @@ metadata:
   name: paymentservice
   labels:
     app: paymentservice
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: paymentservice
@@ -52,9 +59,17 @@ spec:
         - name: DISABLE_PROFILER
           value: "1"
         readinessProbe:
+          initialDelaySeconds: 5  # Chờ 5s cho ứng dụng khởi động trước khi bắt đầu check readiness
+          periodSeconds: 5        # Tần suất kiểm tra mỗi 5 giây
+          timeoutSeconds: 2       # Thời gian timeout cho mỗi lần check
+          failureThreshold: 3     # Thất bại 3 lần liên tiếp sẽ đánh dấu Pod chưa sẵn sàng nhận traffic
           grpc:
             port: 50051
         livenessProbe:
+          initialDelaySeconds: 15 # Chờ 15s trước khi bật tính năng kiểm tra sống/chết của container
+          periodSeconds: 10       # Kiểm tra mỗi 10 giây
+          timeoutSeconds: 2       # Thời gian timeout cho mỗi lần check
+          failureThreshold: 3     # Thất bại 3 lần liên tiếp sẽ tiến hành restart lại container
           grpc:
             port: 50051
         resources:

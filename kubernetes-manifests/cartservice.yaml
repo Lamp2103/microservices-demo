@@ -18,7 +18,14 @@ metadata:
   name: cartservice
   labels:
     app: cartservice
+  namespace: online-boutique
 spec:
+  replicas: 2 # Duy trì ít nhất 2 replicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%        # Tạo thêm tối đa 25% Pods phiên bản mới trước khi xóa Pods cũ
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: cartservice
@@ -56,13 +63,19 @@ spec:
           limits:
             cpu: 300m
             memory: 128Mi
+        # -- ĐÃ SỬA LẠI PROBES --
         readinessProbe:
           initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
           grpc:
             port: 7070
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
           grpc:
             port: 7070
 ---
@@ -118,14 +131,25 @@ spec:
         image: redis:alpine
         ports:
         - containerPort: 6379
+        # -- ĐÃ SỬA LẠI PROBES --
         readinessProbe:
+          initialDelaySeconds: 5
           periodSeconds: 5
-          tcpSocket:
-            port: 6379
+          timeoutSeconds: 3
+          failureThreshold: 3
+          exec:
+            command:
+            - redis-cli
+            - ping
         livenessProbe:
+          initialDelaySeconds: 5
           periodSeconds: 5
-          tcpSocket:
-            port: 6379
+          timeoutSeconds: 3
+          failureThreshold: 3
+          exec:
+            command:
+            - redis-cli
+            - ping
         volumeMounts:
         - mountPath: /data
           name: redis-data
