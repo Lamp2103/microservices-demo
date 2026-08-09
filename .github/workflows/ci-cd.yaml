@@ -138,7 +138,7 @@ jobs:
 
           for SERVICE in "${SERVICES[@]}"; do
             echo "Updating $SERVICE deployment with image tag: $COMMIT_SHA"
-            kubectl set image deployment/$SERVICE $SERVICE=$REGISTRY/online-boutique/$SERVICE:$COMMIT_SHA -n $NAMESPACE --record || true
+            kubectl set image deployment/$SERVICE server=$REGISTRY/online-boutique/$SERVICE:$COMMIT_SHA -n $NAMESPACE
           done
 
       # 6. Kiểm tra trạng thái Rollout của các Deployments
