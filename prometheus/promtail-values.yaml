@@ -1,0 +1,13 @@
+# Cấu hình địa chỉ URL của Loki Server trong K8s cluster
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
+
+# Giới hạn tài nguyên cho Promtail DaemonSet
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

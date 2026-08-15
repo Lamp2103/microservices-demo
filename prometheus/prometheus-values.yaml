@@ -1,0 +1,56 @@
+# 1. Tối ưu cấu hình Prometheus Server
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    retentionSize: "3GB"
+    
+    # Thiết lập giới hạn tài nguyên RAM/CPU cho Prometheus Pod
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+# 2. Tối ưu cấu hình Grafana
+grafana:
+  enabled: true
+  adminPassword: "admin" # Mật khẩu đăng nhập mặc định cho tài khoản admin
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# 3. Tối ưu cấu hình Alertmanager
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+# 4. Tối ưu Prometheus Operator Controller
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# 5. Kích hoạt Node Exporter để lấy metrics hạ tầng K8s Node
+nodeExporter:
+  enabled: true
+
+# 6. Kích hoạt kube-state-metrics để lấy metrics của K8s Objects (Pod, Deployment, Service...)
+kubeStateMetrics:
+  enabled: true

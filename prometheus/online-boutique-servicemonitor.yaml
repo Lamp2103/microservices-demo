@@ -1,0 +1,28 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: online-boutique-servicemonitor
+  namespace: online-boutique
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - online-boutique
+  selector:
+    matchLabels:
+      app: frontend  # Chỉ lọc riêng service frontend (hoặc service bạn đã gắn exporter)
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+
+    # - port: grpc
+    #   path: /metrics
+    #   interval: 15s
+    #   scrapeTimeout: 10s
+
+    # - port: tcp-redis
+    #   path: /metrics
+    #   interval: 15s
+    #   scrapeTimeout: 10s

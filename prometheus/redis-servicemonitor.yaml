@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-cart-servicemonitor
+  namespace: online-boutique
+  labels:
+    # ⚠️ Phải trùng với tên release Helm của bạn (như Ngày 1)
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - online-boutique
+  selector:
+    matchLabels:
+      app: redis-cart
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s

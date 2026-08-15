@@ -419,6 +419,21 @@ spec:
           requests:
             cpu: 70m
             memory: 200Mi
+      - name: redis-exporter
+        image: oliver006/redis_exporter:v1.55.0
+        ports:
+        - containerPort: 9121
+          name: metrics
+        env:
+        - name: REDIS_ADDR
+          value: redis://localhost:6379
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
       volumes:
       - name: redis-data
         emptyDir: {}
