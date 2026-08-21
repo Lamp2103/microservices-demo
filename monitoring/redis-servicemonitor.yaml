@@ -4,7 +4,6 @@ metadata:
   name: redis-cart-servicemonitor
   namespace: online-boutique
   labels:
-    # ⚠️ Phải trùng với tên release Helm của bạn (như Ngày 1)
     release: kube-prometheus-stack
 spec:
   namespaceSelector:
