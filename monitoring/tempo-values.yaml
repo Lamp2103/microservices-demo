@@ -1,0 +1,61 @@
+# tempo-values.yaml
+tempo:
+  # 1. Cấu hình các giao thức nhận Traces (Receivers)
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317" # Cổng chuẩn OTLP gRPC
+        http:
+          endpoint: "0.0.0.0:4318" # Cổng chuẩn OTLP HTTP
+    jaeger:
+      protocols:
+        thrift_compact:
+          endpoint: "0.0.0.0:6831"
+        thrift_binary:
+          endpoint: "0.0.0.0:6832"
+        thrift_http:
+          endpoint: "0.0.0.0:14268"
+        grpc:
+          endpoint: "0.0.0.0:14250"
+    zipkin:
+      endpoint: "0.0.0.0:9411"
+
+  # 2. Cấu hình Lưu trữ Traces (Storage Backend - Local Filesystem)
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+  # Nếu muốn sử dụng S3 làm backend lưu trữ traces
+  # storage:
+  #   trace:
+  #     backend: s3
+  #     s3:
+  #       bucket: my-tempo-traces-bucket-123
+  #       endpoint: s3.ap-southeast-1.amazonaws.com
+  #       insecure: false
+
+  # 3. Cấu hình Giới hạn Thời gian Lưu trữ (Retention)
+  retention: 24h # Giữ traces trong 24 giờ để tiết kiệm dung lượng đĩa
+
+# 4. Giới hạn Tài nguyên RAM/CPU (Resource Limits)
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# 5. Cấu hình Persistence Storage cho Pod
+persistence:
+  enabled: true
+  size: 5Gi
+
+# 6. Mở rộng Service Ports để các ứng dụng bên ngoài/trong cluster kết nối tới
+service:
+  type: ClusterIP

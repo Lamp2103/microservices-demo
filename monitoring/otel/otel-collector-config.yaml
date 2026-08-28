@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: monitoring
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 80
+        spike_limit_percentage: 20
+
+      batch:
+        send_batch_size: 8192
+        timeout: 200ms
+
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.deployment.name
+
+    exporters:
+      # Exporter đẩy Traces về Grafana Tempo qua gRPC
+      otlp/tempo:
+        endpoint: tempo.monitoring.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+      # Exporter mở endpoint Prometheus scrape metrics
+      prometheus:
+        endpoint: 0.0.0.0:8889
+
+
+      debug:
+        verbosity: detailed
+
+    connectors:
+      servicegraph:
+        dimensions:
+          - http.method
+          - http.status_code
+        metrics_flush_interval: 10s
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch] # Giữ nguyên cấu hình cũ của bạn
+          # Chú ý: Thêm servicegraph vào danh sách exporters
+          exporters: [otlp/tempo, debug, servicegraph] 
+
+        metrics:
+          # Chú ý: Thêm servicegraph vào danh sách receivers
+          receivers: [otlp, servicegraph] 
+          processors: [memory_limiter, k8sattributes, batch] # Giữ nguyên cấu hình cũ
+          exporters: [prometheus, debug]
+          
+    
