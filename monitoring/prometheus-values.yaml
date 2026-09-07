@@ -1,10 +1,9 @@
-# 1. Tối ưu cấu hình Prometheus Server
+# 1. Prometheus
 prometheus:
   prometheusSpec:
     retention: 2d
     retentionSize: "3GB"
-    
-    # Thiết lập giới hạn tài nguyên RAM/CPU cho Prometheus Pod
+
     resources:
       requests:
         cpu: 250m
@@ -13,11 +12,13 @@ prometheus:
         cpu: 500m
         memory: 1Gi
 
-# 2. Tối ưu cấu hình Grafana
+
+# 2. Grafana
 grafana:
   plugins: []
   enabled: true
-  adminPassword: "admin" # Mật khẩu đăng nhập mặc định cho tài khoản admin
+  adminPassword: "admin"
+
   resources:
     requests:
       cpu: 250m
@@ -25,18 +26,22 @@ grafana:
     limits:
       cpu: "1"
       memory: 1Gi
+
   livenessProbe:
     initialDelaySeconds: 120
     periodSeconds: 10
     failureThreshold: 10
+
   readinessProbe:
     initialDelaySeconds: 60
     periodSeconds: 10
     failureThreshold: 10
 
+
 # 3. Tối ưu cấu hình Alertmanager
 alertmanager:
   enabled: true
+
   alertmanagerSpec:
     resources:
       requests:
@@ -46,7 +51,40 @@ alertmanager:
         cpu: 100m
         memory: 128Mi
 
-# 4. Tối ưu Prometheus Operator Controller
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by:
+        - alertname
+        - namespace
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      # Receiver mặc định
+      receiver: telegram
+
+      routes:
+        # Watchdog không cần gửi Telegram
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: "null"
+
+    receivers:
+      # Receiver dùng để bỏ qua alert
+      - name: "null"
+
+      # Receiver gửi Telegram
+      - name: telegram
+        telegram_configs:
+          - bot_token: "8692885374:AAGh5yUVSOwmrNZe7BDxGbgHwxJOulF6Uy0"
+            chat_id: 8319467679
+            send_resolved: true
+
+
+# 4. Prometheus Operator
 prometheusOperator:
   resources:
     requests:
@@ -56,10 +94,24 @@ prometheusOperator:
       cpu: 200m
       memory: 256Mi
 
-# 5. Kích hoạt Node Exporter để lấy metrics hạ tầng K8s Node
+
+# 5. Node Exporter
 nodeExporter:
   enabled: true
 
-# 6. Kích hoạt kube-state-metrics để lấy metrics của K8s Objects (Pod, Deployment, Service...)
+
+# 6. kube-state-metrics
 kubeStateMetrics:
   enabled: true
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeProxy:
+  enabled: false

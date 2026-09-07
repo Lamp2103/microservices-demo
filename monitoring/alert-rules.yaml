@@ -1,0 +1,465 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: observability-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+
+spec:
+  groups:
+
+  # ============================================================
+  # 1. GOLDEN SIGNALS
+  # ============================================================
+  - name: golden-signals
+    rules:
+
+    # ------------------------------------------------------------
+    # High Error Rate
+    # HTTP/gRPC/service graph error rate > 5% trong 2 phút
+    # ------------------------------------------------------------
+    - alert: HighErrorRate
+      expr: |
+        (
+          sum by (server) (
+            rate(
+              traces_service_graph_request_server_seconds_count{
+                server!="unknown",
+                failed="true"
+              }[5m]
+            )
+          )
+          /
+          sum by (server) (
+            rate(
+              traces_service_graph_request_server_seconds_count{
+                server!="unknown"
+              }[5m]
+            )
+          )
+        ) > 0.05
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High error rate on {{ $labels.server }}"
+        description: "Error rate for {{ $labels.server }} is above 5% for more than 2 minutes."
+
+
+    # ------------------------------------------------------------
+    # High Latency P99
+    # P99 latency > 1.5 seconds trong 2 phút
+    # ------------------------------------------------------------
+    - alert: HighLatencyP99
+      expr: |
+        histogram_quantile(
+          0.99,
+          sum by (le, client, server) (
+            rate(
+              traces_service_graph_request_client_seconds_bucket{
+                client="frontend",
+                server="checkoutservice"
+              }[1m]
+            )
+          )
+        ) > 1.0
+      for: 30s
+      labels:
+        severity: warning
+      annotations:
+        summary: "High P99 latency from frontend to checkoutservice"
+        description: "P99 client-side latency from {{ $labels.client }} to {{ $labels.server }} is above 1 second."
+
+
+  # ============================================================
+  # 2. POD HEALTH
+  # ============================================================
+  - name: pod-health
+    rules:
+
+    # ------------------------------------------------------------
+    # Pod Not Ready
+    # Pod online-boutique không Ready trong 2 phút
+    # ------------------------------------------------------------
+    - alert: PodNotReady
+      expr: |
+        kube_pod_status_ready{
+          condition="true",
+          namespace="online-boutique"
+        } == 0
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod is not ready"
+        description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready for more than 2 minutes."
+
+
+    # ------------------------------------------------------------
+    # Container Restarting Frequently
+    # Restart > 3 lần trong 10 phút
+    # ------------------------------------------------------------
+    - alert: ContainerRestartingFrequently
+      expr: |
+        increase(
+          kube_pod_container_status_restarts_total{
+            namespace="online-boutique"
+          }[10m]
+        ) > 3
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Container restarting frequently"
+        description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted more than 3 times within 10 minutes."
+
+    - alert: PodDown
+      expr: |
+        kube_deployment_status_replicas_available{
+          namespace="online-boutique"
+        }
+        <
+        kube_deployment_spec_replicas{
+          namespace="online-boutique"
+        }
+      for: 10s
+      labels:
+        severity: critical
+      annotations:
+        summary: "Deployment {{ $labels.deployment }} has unavailable Pods"
+        description: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than desired."
+
+
+  # ============================================================
+  # 3. POD RESOURCE UTILIZATION
+  # ============================================================
+  - name: pod-resources
+    rules:
+
+    # ------------------------------------------------------------
+    # Pod High CPU
+    # CPU usage > 85% CPU limit trong 5 phút
+    # ------------------------------------------------------------
+    - alert: PodHighCPU
+      expr: |
+        (
+          sum by (namespace, pod) (
+            rate(
+              container_cpu_usage_seconds_total{
+                container!="",
+                container!="POD",
+                image!=""
+              }[5m]
+            )
+          )
+          /
+          sum by (namespace, pod) (
+            kube_pod_container_resource_limits{
+              resource="cpu",
+              unit="core"
+            }
+          )
+        ) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on {{ $labels.namespace }}/{{ $labels.pod }}"
+        description: "Pod CPU usage is above 85% of its CPU limit for more than 5 minutes."
+
+
+    # ------------------------------------------------------------
+    # Pod High Memory
+    # Memory usage > 85% memory limit trong 5 phút
+    # ------------------------------------------------------------
+    - alert: PodHighMemory
+      expr: |
+        (
+          sum by (namespace, pod) (
+            container_memory_working_set_bytes{
+              container!="",
+              container!="POD",
+              image!=""
+            }
+          )
+          /
+          sum by (namespace, pod) (
+            kube_pod_container_resource_limits{
+              resource="memory",
+              unit="byte"
+            }
+          )
+        ) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage on {{ $labels.namespace }}/{{ $labels.pod }}"
+        description: "Pod memory usage is above 85% of its memory limit for more than 5 minutes."
+
+
+  # ============================================================
+  # 4. NODE RESOURCE UTILIZATION
+  # ============================================================
+  - name: node-resources
+    rules:
+
+    # ------------------------------------------------------------
+    # Node High CPU
+    # Node CPU usage > 85% trong 5 phút
+    # ------------------------------------------------------------
+    - alert: NodeHighCPU
+      expr: |
+        (
+          1 -
+          avg by (instance) (
+            rate(
+              node_cpu_seconds_total{
+                mode="idle"
+              }[5m]
+            )
+          )
+        ) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage on node {{ $labels.instance }}"
+        description: "Node CPU utilization is above 85% for more than 5 minutes."
+
+
+    # ------------------------------------------------------------
+    # Node High Memory
+    # Node memory usage > 85% trong 5 phút
+    # ------------------------------------------------------------
+    - alert: NodeHighMemory
+      expr: |
+        (
+          1 -
+          (
+            node_memory_MemAvailable_bytes
+            /
+            node_memory_MemTotal_bytes
+          )
+        ) > 0.85
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High node memory utilization"
+        description: "Node {{ $labels.instance }} memory utilization is above 85% for more than 5 minutes."
+
+  # ============================================================
+  # 5. ANOMALY DETECTION
+  # ============================================================
+  - name: anomaly-detection
+    rules:
+
+    # ------------------------------------------------------------
+    # Traffic Anomaly - High
+    # Z-score > 3 so với baseline 1 giờ
+    # ------------------------------------------------------------
+    - alert: TrafficAnomalyHigh
+      expr: |
+        (
+          sum by (client) (
+            rate(
+              traces_service_graph_request_server_seconds_count[5m]
+            )
+          )
+          -
+          avg_over_time(
+            (
+              sum by (client) (
+                rate(
+                  traces_service_graph_request_server_seconds_count[5m]
+                )
+              )
+            )[1h:]
+          )
+        )
+        /
+        stddev_over_time(
+          (
+            sum by (client) (
+              rate(
+                traces_service_graph_request_server_seconds_count[5m]
+              )
+            )
+          )[1h:]
+        ) > 3
+      for: 5m
+      labels:
+        severity: warning
+        category: anomaly
+      annotations:
+        summary: "Abnormally high traffic detected"
+        description: "Traffic for {{ $labels.client }} is more than 3 standard deviations above its 1-hour baseline."
+
+
+    # ------------------------------------------------------------
+    # Traffic Anomaly - Low
+    # Z-score < -3 so với baseline 1 giờ
+    # ------------------------------------------------------------
+    - alert: TrafficAnomalyLow
+      expr: |
+        (
+          sum by (client) (
+            rate(
+              traces_service_graph_request_server_seconds_count[5m]
+            )
+          )
+          -
+          avg_over_time(
+            (
+              sum by (client) (
+                rate(
+                  traces_service_graph_request_server_seconds_count[5m]
+                )
+              )
+            )[1h:]
+          )
+        )
+        /
+        stddev_over_time(
+          (
+            sum by (client) (
+              rate(
+                traces_service_graph_request_server_seconds_count[5m]
+              )
+            )
+          )[1h:]
+        ) < -3
+      for: 5m
+      labels:
+        severity: warning
+        category: anomaly
+      annotations:
+        summary: "Abnormally low traffic detected"
+        description: "Traffic for {{ $labels.client }} is more than 3 standard deviations below its 1-hour baseline."
+
+
+    # ------------------------------------------------------------
+    # Disk Exhaustion Prediction
+    # Dự đoán disk /var còn < 10GB trong 6 giờ tới
+    # ------------------------------------------------------------
+    - alert: DiskExhaustionPredicted
+      expr: |
+        predict_linear(
+          node_filesystem_avail_bytes{
+            fstype=~"ext4|xfs",
+            mountpoint="/var"
+          }[6h],
+          6*3600
+        ) < 10 * 1024 * 1024 * 1024
+      for: 10m
+      labels:
+        severity: warning
+        category: anomaly
+      annotations:
+        summary: "Disk exhaustion predicted"
+        description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} is predicted to have less than 10GB available within 6 hours."
+
+
+    # ------------------------------------------------------------
+    # Node Memory Exhaustion Prediction
+    # Dự đoán available memory < 512MB trong 2 giờ tới
+    # ------------------------------------------------------------
+    - alert: NodeMemoryExhaustionPredicted
+      expr: |
+        predict_linear(
+          node_memory_MemAvailable_bytes[1h],
+          2*3600
+        ) < 512 * 1024 * 1024
+      for: 10m
+      labels:
+        severity: warning
+        category: anomaly
+      annotations:
+        summary: "Node memory exhaustion predicted"
+        description: "Available memory on {{ $labels.instance }} is predicted to fall below 512MB within 2 hours."
+
+    - alert: CPUAnomalyHigh
+      expr: |
+        (
+          sum by (pod) (
+            rate(
+              container_cpu_usage_seconds_total{
+                namespace="online-boutique",
+                pod=~"recommendationservice-.*",
+                container!="",
+                container!="POD"
+              }[1m]
+            )
+          )
+          -
+          avg_over_time(
+            (
+              sum by (pod) (
+                rate(
+                  container_cpu_usage_seconds_total{
+                    namespace="online-boutique",
+                    pod=~"recommendationservice-.*",
+                    container!="",
+                    container!="POD"
+                  }[1m]
+                )
+              )
+            )[1h:]
+          )
+        )
+        /
+        stddev_over_time(
+          (
+            sum by (pod) (
+              rate(
+                container_cpu_usage_seconds_total{
+                  namespace="online-boutique",
+                  pod=~"recommendationservice-.*",
+                  container!="",
+                  container!="POD"
+                }[1m]
+              )
+            )
+          )[1h:]
+        )
+        > 3
+      for: 30s
+      labels:
+        severity: warning
+      annotations:
+        summary: "CPU anomaly detected on {{ $labels.pod }}"
+        description: "CPU usage is more than 3 standard deviations above its 1-hour baseline."
+
+    - alert: PodMemoryExhaustionPredicted
+      expr: |
+        predict_linear(
+          (
+            sum by (pod) (
+              container_memory_working_set_bytes{
+                namespace="online-boutique",
+                pod=~"recommendationservice-.*",
+                container!="",
+                container!="POD"
+              }
+            )
+          )[2m:],
+          5 * 60
+        )
+        >
+        0.9 *
+        sum by (pod) (
+          kube_pod_container_resource_limits{
+            namespace="online-boutique",
+            pod=~"recommendationservice-.*",
+            resource="memory",
+            unit="byte"
+          }
+        )
+      for: 30s
+      labels:
+        severity: critical
+      annotations:
+        summary: "Memory exhaustion predicted on {{ $labels.pod }}"
+        description: "At the current growth rate, {{ $labels.pod }} is predicted to exceed 90% of its memory limit within 5 minutes."
