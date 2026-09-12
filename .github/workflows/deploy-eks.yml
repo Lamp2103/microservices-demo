@@ -14,12 +14,14 @@ env:
   EKS_CLUSTER: observability-demo-cluster
 
 jobs:
+  # =========================================================
+  # BUILD + PUSH 11 SERVICES TO ECR
+  # =========================================================
   build:
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
-
       matrix:
         service:
           - frontend
@@ -48,14 +50,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Debug repository
-        run: |
-          echo "Current directory:"
-          pwd
-
-          echo "Dockerfiles:"
-          find src -name Dockerfile -print
-
       - name: Build and push
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -72,28 +66,108 @@ jobs:
           echo "================================"
 
           if [ "$SERVICE" = "cartservice" ]; then
-
-            echo "Cartservice special build"
-
-            test -f ./src/cartservice/src/Dockerfile
-
             docker build \
               -f ./src/cartservice/src/Dockerfile \
               -t "$IMAGE" \
               ./src/cartservice/src
-
           else
-
-            echo "Normal service build"
-
-            test -f "./src/$SERVICE/Dockerfile"
-
             docker build \
               -t "$IMAGE" \
               "./src/$SERVICE"
-
           fi
 
-          echo "Pushing $IMAGE"
-
           docker push "$IMAGE"
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+  # =========================================================
+  # DEPLOY TO EKS
+  # =========================================================
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region "$AWS_REGION" \
+            --name "$EKS_CLUSTER"
+
+      - name: Test EKS connection
+        run: |
+          kubectl get nodes
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace online-boutique \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
+
+      - name: Deploy Kubernetes manifests
+        run: |
+          kubectl apply \
+            -n online-boutique \
+            -f release/kubernetes-manifests.yaml
+
+      - name: Update deployments to use ECR images
+        env:
+          REGISTRY: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com
+          TAG: ${{ github.sha }}
+        run: |
+          set -e
+
+          SERVICES="
+          frontend
+          cartservice
+          checkoutservice
+          productcatalogservice
+          shippingservice
+          paymentservice
+          emailservice
+          recommendationservice
+          currencyservice
+          adservice
+          loadgenerator
+          "
+
+          for SERVICE in $SERVICES; do
+            echo "================================"
+            echo "Updating $SERVICE"
+
+            CONTAINER=$(kubectl get deployment "$SERVICE" \
+              -n online-boutique \
+              -o jsonpath='{.spec.template.spec.containers[0].name}')
+
+            IMAGE="$REGISTRY/online-boutique/$SERVICE:$TAG"
+
+            echo "Container: $CONTAINER"
+            echo "Image: $IMAGE"
+
+            kubectl set image \
+              deployment/"$SERVICE" \
+              "$CONTAINER=$IMAGE" \
+              -n online-boutique
+          done
+
+      - name: Verify deployments
+        run: |
+          kubectl get deployments -n online-boutique
+          kubectl get pods -n online-boutique
+          kubectl get svc -n online-boutique
+
+      - name: Wait for frontend rollout
+        run: |
+          kubectl rollout status deployment/frontend \
+            -n online-boutique \
+            --timeout=5m
