@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Show OIDC claims
+      - name: Debug GitHub OIDC claims
         uses: actions/github-script@v8
         with:
           script: |
@@ -23,14 +23,15 @@ jobs:
             const payload = JSON.parse(
               Buffer.from(token.split('.')[1], 'base64url').toString()
             )
-
-            console.log("aud =", payload.aud)
-            console.log("sub =", payload.sub)
-            console.log("repository =", payload.repository)
-            console.log("repository_id =", payload.repository_id)
-            console.log("repository_owner =", payload.repository_owner)
-            console.log("repository_owner_id =", payload.repository_owner_id)
-            console.log("ref =", payload.ref)
+            console.log(JSON.stringify({
+              aud: payload.aud,
+              sub: payload.sub,
+              repository: payload.repository,
+              repository_id: payload.repository_id,
+              repository_owner: payload.repository_owner,
+              repository_owner_id: payload.repository_owner_id,
+              ref: payload.ref
+            }, null, 2))
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
