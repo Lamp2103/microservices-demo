@@ -42,9 +42,25 @@ jobs:
           role-to-assume: ${{ secrets.AWS_GITHUB_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check service directory
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          echo "Current directory:"
+          pwd
+
+          echo "Service:"
+          echo "$SERVICE"
+
+          echo "src:"
+          ls -la src
+
+          echo "Service directory:"
+          ls -la "./src/$SERVICE"
 
       - name: Build and push
         env:
@@ -52,10 +68,17 @@ jobs:
           SERVICE: ${{ matrix.service }}
           TAG: ${{ github.sha }}
         run: |
-          docker build \
-          
-            -t "$REGISTRY/online-boutique/$SERVICE:$TAG" \
-            "./src/$SERVICE"
+          echo "=== Build information ==="
+          echo "SERVICE=$SERVICE"
+          echo "REGISTRY=$REGISTRY"
+          echo "TAG=$TAG"
 
-          docker push \
-            "$REGISTRY/online-boutique/$SERVICE:$TAG"
+          echo "=== Verify Dockerfile ==="
+          ls -la "./src/$SERVICE"
+          test -f "./src/$SERVICE/Dockerfile"
+
+          echo "=== Build ==="
+          docker build -t "$REGISTRY/online-boutique/$SERVICE:$TAG" "./src/$SERVICE"
+
+          echo "=== Push ==="
+          docker push "$REGISTRY/online-boutique/$SERVICE:$TAG"
