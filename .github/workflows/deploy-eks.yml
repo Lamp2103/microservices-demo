@@ -1,23 +1,10 @@
-name: Build and Deploy to EKS
-
-on:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: read
-  id-token: write
-
-env:
-  AWS_REGION: ap-southeast-1
-  EKS_CLUSTER: observability-demo-cluster
-
 jobs:
   build:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
+
       matrix:
         service:
           - frontend
@@ -46,21 +33,13 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Check service directory
-        env:
-          SERVICE: ${{ matrix.service }}
+      - name: Debug repository
         run: |
           echo "Current directory:"
           pwd
 
-          echo "Service:"
-          echo "$SERVICE"
-
-          echo "src:"
-          ls -la src
-
-          echo "Service directory:"
-          ls -la "./src/$SERVICE"
+          echo "Dockerfiles:"
+          find src -name Dockerfile -print
 
       - name: Build and push
         env:
@@ -68,17 +47,38 @@ jobs:
           SERVICE: ${{ matrix.service }}
           TAG: ${{ github.sha }}
         run: |
-          echo "=== Build information ==="
-          echo "SERVICE=$SERVICE"
-          echo "REGISTRY=$REGISTRY"
-          echo "TAG=$TAG"
+          set -euxo pipefail
 
-          echo "=== Verify Dockerfile ==="
-          ls -la "./src/$SERVICE"
-          test -f "./src/$SERVICE/Dockerfile"
+          IMAGE="$REGISTRY/online-boutique/$SERVICE:$TAG"
 
-          echo "=== Build ==="
-          docker build -t "$REGISTRY/online-boutique/$SERVICE:$TAG" "./src/$SERVICE"
+          echo "================================"
+          echo "Service: $SERVICE"
+          echo "Image:   $IMAGE"
+          echo "================================"
 
-          echo "=== Push ==="
-          docker push "$REGISTRY/online-boutique/$SERVICE:$TAG"
+          if [ "$SERVICE" = "cartservice" ]; then
+
+            echo "Cartservice special build"
+
+            test -f ./src/cartservice/src/Dockerfile
+
+            docker build \
+              -f ./src/cartservice/src/Dockerfile \
+              -t "$IMAGE" \
+              .
+
+          else
+
+            echo "Normal service build"
+
+            test -f "./src/$SERVICE/Dockerfile"
+
+            docker build \
+              -t "$IMAGE" \
+              "./src/$SERVICE"
+
+          fi
+
+          echo "Pushing $IMAGE"
+
+          docker push "$IMAGE"
