@@ -75,7 +75,7 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker build \
-            -t "$REGISTRY/online-boutique/frontend:oidc-test" \
+            -t "$REGISTRY/online-boutique/frontend:${GITHUB_SHA}" \
             ./src/frontend
 
       - name: Push frontend
@@ -83,7 +83,7 @@ jobs:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker push \
-            "$REGISTRY/online-boutique/frontend:oidc-test"
+            "$REGISTRY/online-boutique/frontend:${GITHUB_SHA}"
 
       - name: Verify Kubernetes permissions
         run: |
