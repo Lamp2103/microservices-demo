@@ -80,7 +80,7 @@ jobs:
             docker build \
               -f ./src/cartservice/src/Dockerfile \
               -t "$IMAGE" \
-              .
+              ./src/cartservice/src
 
           else
 
