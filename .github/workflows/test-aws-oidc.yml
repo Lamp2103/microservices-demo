@@ -59,3 +59,13 @@ jobs:
       - name: Test kubectl
         run: |
           kubectl get nodes
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Verify ECR
+        run: |
+          aws ecr describe-repositories \
+            --region ap-southeast-1 \
+            --query 'repositories[?starts_with(repositoryName, `online-boutique/`)].repositoryName'
