@@ -69,3 +69,18 @@ jobs:
           aws ecr describe-repositories \
             --region ap-southeast-1 \
             --query 'repositories[?starts_with(repositoryName, `online-boutique/`)].repositoryName'
+
+      - name: Build frontend
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build \
+            -t "$REGISTRY/online-boutique/frontend:oidc-test" \
+            ./src/frontend
+
+      - name: Push frontend
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker push \
+            "$REGISTRY/online-boutique/frontend:oidc-test"
