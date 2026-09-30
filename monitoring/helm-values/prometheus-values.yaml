@@ -1,0 +1,170 @@
+# =========================================================
+# kube-prometheus-stack values
+# Mục tiêu:
+# - Prometheus retention: 7 ngày
+# - Giới hạn dung lượng Prometheus để tránh phồng EBS
+# - Tối ưu CPU/RAM cho các thành phần monitoring
+# =========================================================
+
+
+# 1. Prometheus
+prometheus:
+  enabled: true
+
+  prometheusSpec:
+    # Giữ metrics trong 7 ngày
+    retention: 7d
+
+    # Giới hạn dung lượng TSDB.
+    # Prometheus sẽ xóa dữ liệu khi chạm 7 ngày HOẶC giới hạn size.
+    # 10GB phù hợp để bắt đầu cho project/demo.
+    retentionSize: "10GB"
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+
+    # Persistent storage để dữ liệu không mất khi Pod restart/reschedule
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+
+
+# 2. Grafana
+grafana:
+  enabled: true
+  plugins: []
+
+  # Chỉ dùng cho lab.
+  # Nên đổi sang Kubernetes Secret trước khi commit public repository.
+  adminPassword: "admin"
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 384Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 10
+    failureThreshold: 10
+
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    failureThreshold: 10
+
+
+# 3. Alertmanager
+alertmanager:
+  enabled: true
+
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by:
+        - alertname
+        - namespace
+
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      receiver: telegram
+
+      routes:
+        # Không gửi Watchdog lên Telegram
+        - matchers:
+            - alertname = "Watchdog"
+          receiver: "null"
+
+    receivers:
+      # Receiver bỏ qua alert
+      - name: "null"
+
+      # Receiver Telegram
+      - name: telegram
+        telegram_configs:
+          - bot_token: "8692885374:AAGh5yUVSOwmrNZe7BDxGbgHwxJOulF6Uy0"
+            chat_id: 8319467679
+            send_resolved: true
+
+
+# 4. Prometheus Operator
+prometheusOperator:
+  enabled: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+
+# 5. Node Exporter
+nodeExporter:
+  enabled: true
+
+# Resources của prometheus-node-exporter subchart
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+
+# 6. kube-state-metrics
+kubeStateMetrics:
+  enabled: true
+
+# Resources của kube-state-metrics subchart
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+
+# 7. Các control-plane components không scrape trực tiếp trên AWS EKS
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeProxy:
+  enabled: false

@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  template:
+    spec:
+      containers:
+        - name: server
+          env:
+            - name: COLLECTOR_SERVICE_ADDR
+              value: "otel-collector.monitoring.svc.cluster.local:4317"

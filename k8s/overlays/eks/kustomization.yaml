@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/frontend
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/frontend
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/cartservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/cartservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/checkoutservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/checkoutservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/productcatalogservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/productcatalogservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/shippingservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/shippingservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/paymentservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/paymentservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/emailservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/emailservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/recommendationservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/recommendationservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/currencyservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/currencyservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/adservice
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/adservice
+    newTag: 58ea873b
+
+  - name: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo/loadgenerator
+    newName: 966936071241.dkr.ecr.ap-southeast-1.amazonaws.com/online-boutique/loadgenerator
+    newTag: 58ea873b
+  
+patches:
+  - path: frontend-env-patch.yaml
+  - path: otel-env-patches.yaml

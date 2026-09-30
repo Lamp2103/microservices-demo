@@ -1,0 +1,131 @@
+# =========================================================
+# Loki - Single Binary mode cho Lab/Test trên AWS EKS
+# Mục tiêu:
+# - Retention logs: 3 ngày
+# - Tối ưu CPU/RAM
+# - Filesystem storage
+# =========================================================
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+
+  commonConfig:
+    replication_factor: 1
+
+  # -----------------------------
+  # Retention: 3 ngày
+  # -----------------------------
+  limits_config:
+    retention_period: 72h
+
+  compactor:
+    working_directory: /var/loki/compactor
+    compaction_interval: 10m
+    retention_enabled: true
+    delete_request_store: filesystem
+
+  # -----------------------------
+  # TSDB schema
+  # Retention yêu cầu period = 24h
+  # -----------------------------
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  # -----------------------------
+  # Local filesystem storage
+  # -----------------------------
+  storage:
+    type: filesystem
+
+
+# =========================================================
+# Loki Single Binary
+# =========================================================
+singleBinary:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  # Persistent volume để logs không mất khi Pod restart
+  persistence:
+    enabled: true
+    size: 10Gi
+
+
+# =========================================================
+# Disable scalable mode components
+# =========================================================
+backend:
+  replicas: 0
+
+read:
+  replicas: 0
+
+write:
+  replicas: 0
+
+
+# =========================================================
+# Disable components không cần thiết cho lab
+# =========================================================
+chunksCache:
+  enabled: false
+
+lokiCanary:
+  enabled: false
+
+test:
+  enabled: false
+
+
+# =========================================================
+# Loki Gateway
+# =========================================================
+gateway:
+  enabled: true
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+
+# =========================================================
+# Results Cache
+#
+# Actual usage hiện tại:
+# exporter:  ~1m CPU / 7Mi
+# memcached: ~1m CPU / 1Mi
+#
+# Vì vậy giảm mạnh request so với default.
+# =========================================================
+resultsCache:
+  enabled: true
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  # Giảm lượng RAM mà memcached giữ riêng.
+  # Nếu chart version của bạn hỗ trợ key này.
+  allocatedMemory: 64

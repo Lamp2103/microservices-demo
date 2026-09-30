@@ -3,7 +3,7 @@ module "eks" {
   version = "20.8.4"
 
   cluster_name    = "observability-demo-cluster"
-  cluster_version = "1.31" # Đặt cố định 1.30 (KHÔNG hạ xuống 1.29)
+  cluster_version = "1.34"
 
   cluster_endpoint_public_access = true
 
@@ -11,19 +11,36 @@ module "eks" {
   subnet_ids               = module.vpc.private_subnets
   control_plane_subnet_ids = module.vpc.private_subnets
 
-  eks_managed_node_groups = {
-    demo_nodes = {
-      min_size     = 1
-      max_size     = 3
-      desired_size = 2
+  enable_cluster_creator_admin_permissions = true
 
-      instance_types = ["t3.medium"]
-      capacity_type  = "SPOT"
-      
-      # Khai báo AMI AL2023 bắt buộc cho K8s 1.30
-      ami_type       = "AL2023_x86_64_STANDARD"
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+
+    kube-proxy = {
+      most_recent = true
+    }
+
+    vpc-cni = {
+      most_recent = true
+    }
+
+    eks-pod-identity-agent = {
+      most_recent = true
     }
   }
 
-  enable_cluster_creator_admin_permissions = true
+  eks_managed_node_groups = {
+    demo_nodes = {
+      min_size     = 2
+      max_size     = 4
+      desired_size = 3
+
+      instance_types = ["t3.large"]
+      capacity_type  = "SPOT"
+
+      ami_type = "AL2023_x86_64_STANDARD"
+    }
+  }
 }

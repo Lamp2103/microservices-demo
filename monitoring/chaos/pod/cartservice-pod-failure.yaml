@@ -1,0 +1,16 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: cartservice-pod-failure
+  namespace: online-boutique
+
+spec:
+  action: pod-failure
+  mode: one
+  duration: "90s"
+
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: cartservice

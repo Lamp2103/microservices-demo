@@ -1,0 +1,106 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: online-boutique-e2e-chaos
+  namespace: online-boutique
+
+spec:
+  entry: e2e-sequence
+
+  templates:
+
+    # =====================================
+    # MAIN SEQUENCE
+    # =====================================
+    - name: e2e-sequence
+      templateType: Serial
+      children:
+        - pod-kill
+        - wait-after-pod
+        - network-delay
+        - wait-after-network
+        - cpu-stress
+
+    # =====================================
+    # STEP 1 - POD KILL
+    # =====================================
+    - name: pod-kill
+      templateType: PodChaos
+      deadline: 30s
+      podChaos:
+        action: pod-kill
+        mode: one
+
+        selector:
+          namespaces:
+            - online-boutique
+
+          labelSelectors:
+            app: cartservice
+
+    # Give Kubernetes time to recover
+    - name: wait-after-pod
+      templateType: Suspend
+      deadline: 60s
+
+    # =====================================
+    # STEP 2 - NETWORK DELAY
+    # frontend -> checkoutservice
+    # =====================================
+    - name: network-delay
+      templateType: NetworkChaos
+      deadline: 180s
+
+      networkChaos:
+        action: delay
+        mode: all
+
+        selector:
+          namespaces:
+            - online-boutique
+
+          labelSelectors:
+            app: frontend
+
+        direction: to
+
+        target:
+          mode: all
+
+          selector:
+            namespaces:
+              - online-boutique
+
+            labelSelectors:
+              app: checkoutservice
+
+        delay:
+          latency: "1000ms"
+          jitter: "200ms"
+          correlation: "0"
+
+    - name: wait-after-network
+      templateType: Suspend
+      deadline: 60s
+
+    # =====================================
+    # STEP 3 - CPU STRESS
+    # =====================================
+    - name: cpu-stress
+      templateType: StressChaos
+      deadline: 180s
+
+      stressChaos:
+        mode: one
+
+        selector:
+          namespaces:
+            - online-boutique
+
+          labelSelectors:
+            app: recommendationservice
+
+        stressors:
+          cpu:
+            workers: 1
+            load: 100

@@ -1,0 +1,25 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: recommendation-resource-stress
+  namespace: online-boutique
+
+spec:
+  mode: one
+
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: recommendationservice
+
+  stressors:
+    cpu:
+      workers: 1
+      load: 100
+
+    memory:
+      workers: 1
+      size: "80%"
+
+  duration: "5m"

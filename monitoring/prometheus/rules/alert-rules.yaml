@@ -127,8 +127,8 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "Deployment {{ $labels.deployment }} has unavailable Pods"
-        description: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has fewer available replicas than desired."
+        summary: "Deployment has unavailable replicas"
+        description: "{{ $labels.deployment }} has fewer available replicas than desired."
 
 
   # ============================================================

@@ -18,10 +18,10 @@ locals {
 resource "aws_ecr_repository" "microservices" {
   for_each             = toset(local.services)
   name                 = "online-boutique/${each.value}"
-  image_tag_mutability = "MUTABLE"
-  
+  image_tag_mutability = "IMMUTABLE"
+
   # Bổ sung dòng này để tự động xóa image khi hủy hạ tầng
-  force_delete         = true
+  force_delete = true
 
   image_scanning_configuration {
     scan_on_push = true

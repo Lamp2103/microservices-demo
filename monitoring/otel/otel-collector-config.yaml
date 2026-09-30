@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: otel-collector-config
   namespace: monitoring
+
 data:
   otel-collector-config.yaml: |
     receivers:
@@ -19,10 +20,6 @@ data:
         limit_percentage: 80
         spike_limit_percentage: 20
 
-      batch:
-        send_batch_size: 8192
-        timeout: 200ms
-
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -34,17 +31,25 @@ data:
             - k8s.node.name
             - k8s.deployment.name
 
+      transform/service_name:
+        error_mode: ignore
+        trace_statements:
+          - context: resource
+            statements:
+              - set(attributes["service.name"], attributes["k8s.deployment.name"]) where attributes["k8s.deployment.name"] != nil and IsMatch(attributes["service.name"], "^unknown_service")
+
+      batch:
+        send_batch_size: 8192
+        timeout: 200ms
+
     exporters:
-      # Exporter đẩy Traces về Grafana Tempo qua gRPC
       otlp/tempo:
         endpoint: tempo.monitoring.svc.cluster.local:4317
         tls:
           insecure: true
 
-      # Exporter mở endpoint Prometheus scrape metrics
       prometheus:
         endpoint: 0.0.0.0:8889
-
 
       debug:
         verbosity: detailed
@@ -60,14 +65,24 @@ data:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, k8sattributes, batch] # Giữ nguyên cấu hình cũ của bạn
-          # Chú ý: Thêm servicegraph vào danh sách exporters
-          exporters: [otlp/tempo, debug, servicegraph] 
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - transform/service_name
+            - batch
+          exporters:
+            - otlp/tempo
+            - debug
+            - servicegraph
 
         metrics:
-          # Chú ý: Thêm servicegraph vào danh sách receivers
-          receivers: [otlp, servicegraph] 
-          processors: [memory_limiter, k8sattributes, batch] # Giữ nguyên cấu hình cũ
-          exporters: [prometheus, debug]
-          
-    
+          receivers:
+            - otlp
+            - servicegraph
+          processors:
+            - memory_limiter
+            - k8sattributes
+            - batch
+          exporters:
+            - prometheus
+            - debug

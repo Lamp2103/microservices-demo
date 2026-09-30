@@ -1,0 +1,31 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: e2e-frontend-checkout-delay
+  namespace: online-boutique
+spec:
+  action: delay
+  mode: all
+
+  selector:
+    namespaces:
+      - online-boutique
+    labelSelectors:
+      app: frontend
+
+  direction: to
+
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - online-boutique
+      labelSelectors:
+        app: checkoutservice
+
+  delay:
+    latency: "1000ms"
+    jitter: "200ms"
+    correlation: "0"
+
+  duration: "10m"

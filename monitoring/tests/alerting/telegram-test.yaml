@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: telegram-e2e-test
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+
+spec:
+  groups:
+    - name: telegram-e2e-test
+      rules:
+        - alert: TelegramE2ETest
+          expr: vector(1)
+          for: 10s
+
+          labels:
+            severity: warning
+
+          annotations:
+            summary: "EKS Telegram test"
+            description: "Prometheus -> Alertmanager -> Telegram test"
